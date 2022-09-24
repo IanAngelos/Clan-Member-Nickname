@@ -19,7 +19,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.cmn.Constants.SHEET_ID;
 
@@ -71,7 +73,8 @@ public class SheetsTest {
         // Build a new authorized API client service.
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
         final String spreadsheetId = SHEET_ID;
-        final String range = "Clan Nicknames!A1:B2";
+        final String range = "Clan Nicknames!A:B";
+        Map<String, String> clanNameMapRead = new HashMap<>();
         Sheets service =
                 new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
                         .setApplicationName(APPLICATION_NAME)
@@ -84,10 +87,10 @@ public class SheetsTest {
             System.out.println("No data found.");
         } else {
             for (List row : values) {
-                // Print columns A and E, which correspond to indices 0 and 4.
-                //TODO: Save rows into a hashmap/list
-                System.out.printf("%s, %s\n", row.get(0), row.get(1));
+                //Checks for duplicate clan names in the file and stores the pair in a string map.
+                clanNameMapRead.putIfAbsent(row.get(0).toString(),row.get(1).toString());
             }
+            System.out.printf(clanNameMapRead.toString());
         }
     }
 }
