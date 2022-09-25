@@ -9,17 +9,20 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.sheets.v4.Sheets;
+import com.google.api.services.sheets.v4.model.AppendValuesResponse;
+import com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest;
+import com.google.api.services.sheets.v4.model.UpdateValuesResponse;
 import com.google.api.services.sheets.v4.model.ValueRange;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.function.UnaryOperator;
 
 public class SheetsTest {
+
     private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT)
             throws IOException {
         // Load client secrets.
@@ -50,10 +53,13 @@ public class SheetsTest {
         ValueRange response = service.spreadsheets().values()
                 .get(Constants.SHEET_ID, Constants.SHEET_RANGE)
                 .execute();
-        setClanNameMapRead(response);
+        clanNameMapRead(response, service);
     }
 
-    private static void setClanNameMapRead(ValueRange response){
+    //Read Only Flow:
+    //1 Fetch Existing Values from sheet(Can use same Read)
+    //2 Display in chat the users nickname
+    private static void clanNameMapRead(ValueRange response, Sheets service) throws IOException {
         List<List<Object>> values = response.getValues();
         Map<String, String> clanNameMapRead = new HashMap<>();
         if (values == null || values.isEmpty()) {
@@ -64,6 +70,42 @@ public class SheetsTest {
                 clanNameMapRead.putIfAbsent(row.get(0).toString(),row.get(1).toString());
             }
             System.out.printf(clanNameMapRead.toString());
+        }
+
+        if (Constants.WRITE) {
+            clanNameMapWrite(clanNameMapRead, service, response);
+        }
+    }
+
+    //Write Flow:
+    //1 Fetch Existing Values from sheet(Can use same Read)
+    //2 Determine if value exists or not (Update vs. Add)
+    //3 Send update/add
+    //4 Respond in runelite that this was succesfull?
+    private static void clanNameMapWrite(Map<String, String> clanNameMapRead, Sheets service, ValueRange response) throws IOException {
+        //  ValueRange updates = new ValueRange();
+        //TODO: Update Not Working Currently
+        //TODO: Add checks/flags for update vs add
+        if (Constants.UPDATE) {
+            response.setValues(Collections.singletonList(
+                    Arrays.asList(clanNameMapRead)));
+            UpdateValuesResponse result = service.spreadsheets().values()
+                    .update(Constants.SHEET_ID, Constants.SHEET_RANGE, response)
+                    .setValueInputOption("RAW")
+                    .execute();
+            System.out.println("UPDATE SUCCESS");
+        } else {
+            ValueRange appendBody = new ValueRange()
+                    .setValues(Arrays.asList(
+                            //TODO: Replace with variables from runelite
+                            Arrays.asList("TESTAPPENDName", "asjdlkasjlkdjalksjhjd")));
+            AppendValuesResponse appendResult = service.spreadsheets().values()
+                    .append(Constants.SHEET_ID, Constants.SHEET_RANGE, appendBody)
+                    .setValueInputOption("RAW")
+                    .setInsertDataOption("INSERT_ROWS")
+                    .setIncludeValuesInResponse(true)
+                    .execute();
+            System.out.println("APPEND SUCCESS");
         }
     }
 }
